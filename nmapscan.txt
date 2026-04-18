@@ -1,0 +1,73 @@
+#FOR LAN
+sudo nmap -sS -sV -sC -O --osscan-guess \
+  -p- \
+  -T4 -A \
+  --script=vuln,exploit,auth,default,discovery,safe,brute,malware,\
+http-vuln*,http-shellshock,http-slowloris-check,\
+http-headers,http-methods,http-title,http-auth-finder,\
+http-default-accounts,http-config-backup,http-robots.txt,\
+http-backup-finder,http-git,http-svn-enum,\
+http-csrf,http-dombased-xss,http-stored-xss,http-xssed,\
+http-sql-injection,http-unsafe-output-escaping,\
+http-php-version,http-server-header,http-generator,\
+http-cookie-flags,http-cors,http-internal-ip-disclosure,\
+http-open-redirect,http-open-proxy,\
+http-auth,http-brute,http-form-brute,http-form-fuzzer,\
+ssl-cert,ssl-enum-ciphers,ssl-dh-params,ssl-poodle,ssl-heartbleed,\
+ssl-ccs-injection,ssl-known-key,\
+banner,dns-zone-transfer,\
+snmp-info,snmp-brute,snmp-sysdescr,\
+telnet-brute,telnet-ntlm-info,\
+ssh-auth-methods,ssh-brute,ssh-hostkey,\
+ftp-anon,ftp-bounce,ftp-vuln-cve2010-4221,\
+broadcast-router-info,router-exploit,\
+smtp-commands,smtp-vuln-cve2010-4344,\
+rdp-enum-encryption,rdp-vuln-ms12-020 \
+  -Pn --traceroute --reason \
+  --script-timeout 60s \
+  --host-timeout 30m \
+  --min-rate 500 \
+  --max-retries 2 \
+  -oA full_scan_results \
+  192.168.0.O/24
+
+#FOR DNS AND IP  
+sudo nmap \
+  -sS -sV -sC \
+  -O --osscan-guess \
+  -p- \
+  -T4 \
+  -A \
+  --script=vuln,exploit,auth,default,discovery,safe,brute,malware,\
+http-vuln*,http-shellshock,http-slowloris-check,\
+http-headers,http-methods,http-title,http-auth-finder,\
+http-default-accounts,http-config-backup,http-robots.txt,\
+http-backup-finder,http-git,http-svn-enum,\
+http-csrf,http-dombased-xss,http-stored-xss,http-xssed,\
+http-sql-injection,http-unsafe-output-escaping,\
+http-php-version,http-server-header,http-generator,\
+http-cookie-flags,http-cors,http-internal-ip-disclosure,\
+http-open-redirect,http-open-proxy,\
+http-auth,http-brute,http-form-brute,http-form-fuzzer,\
+http-waf-detect,http-waf-fingerprint,\
+http-wordpress-enum,http-wordpress-brute,\
+http-drupal-enum,http-joomla-brute,\
+http-fileupload-exploiter,http-put,\
+http-iis-webdav-vuln,http-iis-short-name-brute,\
+ssl-cert,ssl-enum-ciphers,ssl-dh-params,ssl-poodle,ssl-heartbleed,\
+ssl-ccs-injection,ssl-known-key,ssl-date,\
+banner,dns-zone-transfer,dns-brute,dns-recursion,\
+snmp-info,snmp-brute,snmp-sysdescr,\
+smtp-commands,smtp-vuln-cve2010-4344,smtp-enum-users,\
+ssh-auth-methods,ssh-brute,ssh-hostkey,\
+ftp-anon,ftp-bounce,ftp-vuln-cve2010-4221 \
+  --version-intensity 9 \
+  --script-timeout 60s \
+  --host-timeout 45m \
+  --min-rate 500 \
+  --max-retries 2 \
+  -Pn \
+  --traceroute \
+  --reason \
+  -oA scan_example \
+  example.com
