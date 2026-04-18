@@ -1,5 +1,5 @@
 
-there is nothing for you this for me i can't remamver all this script 
+There is nothing for you this is only for me becose i can't remamver all this script 
 
-
-THANK 
+                                        go wey    
+                                        THANK 
