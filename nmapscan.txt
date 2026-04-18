@@ -1,48 +1,11 @@
-#FOR LAN
 sudo nmap -sS -sV -sC -O --osscan-guess \
   -p- \
   -T4 -A \
   --script=vuln,exploit,auth,default,discovery,safe,brute,malware,\
-http-vuln*,http-shellshock,http-slowloris-check,\
+http-vuln*,http-shellshock,http-slowloris-check,http-slowloris,\
 http-headers,http-methods,http-title,http-auth-finder,\
 http-default-accounts,http-config-backup,http-robots.txt,\
-http-backup-finder,http-git,http-svn-enum,\
-http-csrf,http-dombased-xss,http-stored-xss,http-xssed,\
-http-sql-injection,http-unsafe-output-escaping,\
-http-php-version,http-server-header,http-generator,\
-http-cookie-flags,http-cors,http-internal-ip-disclosure,\
-http-open-redirect,http-open-proxy,\
-http-auth,http-brute,http-form-brute,http-form-fuzzer,\
-ssl-cert,ssl-enum-ciphers,ssl-dh-params,ssl-poodle,ssl-heartbleed,\
-ssl-ccs-injection,ssl-known-key,\
-banner,dns-zone-transfer,\
-snmp-info,snmp-brute,snmp-sysdescr,\
-telnet-brute,telnet-ntlm-info,\
-ssh-auth-methods,ssh-brute,ssh-hostkey,\
-ftp-anon,ftp-bounce,ftp-vuln-cve2010-4221,\
-broadcast-router-info,router-exploit,\
-smtp-commands,smtp-vuln-cve2010-4344,\
-rdp-enum-encryption,rdp-vuln-ms12-020 \
-  -Pn --traceroute --reason \
-  --script-timeout 60s \
-  --host-timeout 30m \
-  --min-rate 500 \
-  --max-retries 2 \
-  -oA full_scan_results \
-  192.168.0.O/24
-
-#FOR DNS AND IP  
-sudo nmap \
-  -sS -sV -sC \
-  -O --osscan-guess \
-  -p- \
-  -T4 \
-  -A \
-  --script=vuln,exploit,auth,default,discovery,safe,brute,malware,\
-http-vuln*,http-shellshock,http-slowloris-check,\
-http-headers,http-methods,http-title,http-auth-finder,\
-http-default-accounts,http-config-backup,http-robots.txt,\
-http-backup-finder,http-git,http-svn-enum,\
+http-backup-finder,http-git,http-svn-enum,http-svn-info,\
 http-csrf,http-dombased-xss,http-stored-xss,http-xssed,\
 http-sql-injection,http-unsafe-output-escaping,\
 http-php-version,http-server-header,http-generator,\
@@ -50,24 +13,71 @@ http-cookie-flags,http-cors,http-internal-ip-disclosure,\
 http-open-redirect,http-open-proxy,\
 http-auth,http-brute,http-form-brute,http-form-fuzzer,\
 http-waf-detect,http-waf-fingerprint,\
-http-wordpress-enum,http-wordpress-brute,\
-http-drupal-enum,http-joomla-brute,\
+http-wordpress-enum,http-wordpress-brute,http-wordpress-users,\
+http-drupal-enum,http-drupal-enum-users,\
+http-joomla-brute,\
 http-fileupload-exploiter,http-put,\
 http-iis-webdav-vuln,http-iis-short-name-brute,\
+http-enum,http-errors,http-trace,\
+http-security-headers,http-cross-domain-policy,\
+http-passwd,http-phpself-xss,\
+http-phpmyadmin-dir-traversal,\
+http-ntlm-info,http-aspnet-debug,\
+http-webdav-scan,http-method-tamper,\
+http-dlink-backdoor,http-huawei-hg5xx-vuln,\
+http-tplink-dir-traversal,\
+http-frontpage-login,http-proxy-brute,\
+http-userdir-enum,http-vhosts,\
+http-jsonp-detection,http-rfi-spider,\
+http-sitemap-generator,http-exif-spider,\
 ssl-cert,ssl-enum-ciphers,ssl-dh-params,ssl-poodle,ssl-heartbleed,\
-ssl-ccs-injection,ssl-known-key,ssl-date,\
+ssl-ccs-injection,ssl-known-key,ssl-date,ssl-cert-intaddr,\
+sslv2,sslv2-drown,tls-alpn,tls-nextprotoneg,tls-ticketbleed,\
 banner,dns-zone-transfer,dns-brute,dns-recursion,\
-snmp-info,snmp-brute,snmp-sysdescr,\
-smtp-commands,smtp-vuln-cve2010-4344,smtp-enum-users,\
-ssh-auth-methods,ssh-brute,ssh-hostkey,\
-ftp-anon,ftp-bounce,ftp-vuln-cve2010-4221 \
-  --version-intensity 9 \
+dns-cache-snoop,dns-check-zone,dns-srv-enum,\
+dns-nsec-enum,dns-nsec3-enum,dns-random-srcport,dns-random-txid,\
+snmp-info,snmp-brute,snmp-sysdescr,snmp-interfaces,\
+snmp-processes,snmp-netstat,snmp-ios-config,\
+snmp-win32-services,snmp-win32-shares,snmp-win32-software,snmp-win32-users,\
+telnet-brute,telnet-ntlm-info,telnet-encryption,\
+ssh-auth-methods,ssh-brute,ssh-hostkey,ssh2-enum-algos,\
+ssh-publickey-acceptance,sshv1,\
+ftp-anon,ftp-bounce,ftp-vuln-cve2010-4221,\
+ftp-brute,ftp-proftpd-backdoor,ftp-vsftpd-backdoor,ftp-libopie,\
+smb-vuln-ms17-010,smb-vuln-ms08-067,smb-vuln-ms06-025,\
+smb-vuln-ms07-029,smb-vuln-ms10-054,smb-vuln-ms10-061,\
+smb-vuln-cve2009-3103,smb-vuln-cve-2017-7494,\
+smb-vuln-conficker,smb-vuln-regsvc-dos,smb-vuln-webexec,\
+smb-double-pulsar-backdoor,smb-enum-users,smb-enum-shares,\
+smb-enum-domains,smb-enum-groups,smb-enum-services,\
+smb-os-discovery,smb-security-mode,smb-protocols,\
+smb2-vuln-uptime,smb2-capabilities,smb2-security-mode,\
+smtp-commands,smtp-vuln-cve2010-4344,smtp-vuln-cve2011-1720,\
+smtp-vuln-cve2011-1764,smtp-enum-users,smtp-brute,\
+smtp-open-relay,smtp-ntlm-info,\
+rdp-enum-encryption,rdp-vuln-ms12-020,rdp-ntlm-info,\
+mysql-info,mysql-brute,mysql-empty-password,mysql-vuln-cve2012-2122,\
+mysql-enum,mysql-databases,mysql-users,mysql-variables,\
+ms-sql-info,ms-sql-brute,ms-sql-empty-password,ms-sql-xp-cmdshell,\
+ms-sql-config,ms-sql-dump-hashes,ms-sql-ntlm-info,\
+vnc-brute,vnc-info,vnc-title,realvnc-auth-bypass,\
+irc-brute,irc-info,irc-unrealircd-backdoor,\
+pop3-brute,pop3-capabilities,pop3-ntlm-info,\
+imap-brute,imap-capabilities,imap-ntlm-info,\
+ldap-brute,ldap-rootdse,ldap-search,\
+rmi-vuln-classloader,rmi-dumpregistry,\
+x11-access,ip-forwarding,\
+firewall-bypass,sniffer-detect,\
+upnp-info,broadcast-upnp-info,\
+broadcast-dhcp-discover,broadcast-dns-service-discovery,\
+broadcast-listener,broadcast-ping,\
+vulners,stuxnet-detect,\
+whois-domain,whois-ip,\
+finger,auth-owners,auth-spoof \
+  -Pn --traceroute --reason \
   --script-timeout 60s \
-  --host-timeout 45m \
+  --host-timeout 30m \
   --min-rate 500 \
   --max-retries 2 \
-  -Pn \
-  --traceroute \
-  --reason \
-  -oA scan_example \
-  example.com
+  -oA full_scan_results \
+  YOUR-TARGET-HERE
