@@ -1,0 +1,201 @@
+/* ========================================================
+   HACKER BAR — dark green-on-black cyberpunk theme
+   Font: JetBrains Mono Nerd Font (install: ttf-jetbrains-mono-nerd)
+   ======================================================== */
+
+* {
+    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+    font-size: 13px;
+    border: none;
+    border-radius: 0;
+    min-height: 0;
+}
+
+window#waybar {
+    background: rgba(0, 0, 0, 0.85);
+    border-bottom: 1px solid #00ff41;
+    color: #00ff41;
+}
+
+/* floating pill look for the whole bar */
+window#waybar > box {
+    border-radius: 10px;
+    border: 1px solid rgba(0, 255, 65, 0.3);
+    background: rgba(0, 5, 0, 0.92);
+}
+
+/* ── Tooltip ─────────────────────────────────────────── */
+
+tooltip {
+    background: #000500;
+    border: 1px solid #00ff41;
+    border-radius: 6px;
+    color: #00ff41;
+}
+
+tooltip label {
+    color: #00ff41;
+}
+
+/* ── Workspaces ──────────────────────────────────────── */
+
+#workspaces {
+    margin: 0 6px;
+    padding: 0;
+}
+
+#workspaces button {
+    padding: 0 8px;
+    color: #2a7a3b;
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+#workspaces button:hover {
+    background: rgba(0, 255, 65, 0.1);
+    color: #00ff41;
+    border-bottom: 2px solid #00ff41;
+}
+
+#workspaces button.active {
+    color: #00ff41;
+    background: rgba(0, 255, 65, 0.15);
+    border-bottom: 2px solid #00ff41;
+    font-weight: bold;
+}
+
+#workspaces button.urgent {
+    color: #ff0055;
+    border-bottom: 2px solid #ff0055;
+}
+
+/* ── Window title ────────────────────────────────────── */
+
+#window {
+    color: #4dff7c;
+    font-style: italic;
+    margin: 0 8px;
+    opacity: 0.75;
+}
+
+/* ── Clock ───────────────────────────────────────────── */
+
+#clock {
+    color: #004cff;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 1px;
+    padding: 0 12px;
+    border-left: 1px solid rgba(254, 0, 0, 0.992);
+    border-right: 1px solid rgb(255, 0, 0);
+}
+
+/* ── All right-side modules ──────────────────────────── */
+
+#cpu,
+#memory,
+#temperature,
+#network,
+#pulseaudio,
+#backlight,
+#battery,
+#tray {
+    padding: 0 10px;
+    color: #00cc33;
+    border-left: 1px solid rgba(0, 255, 65, 0.08);
+    transition: all 0.2s ease;
+}
+
+#cpu:hover,
+#memory:hover,
+#temperature:hover,
+#network:hover,
+#pulseaudio:hover,
+#backlight:hover,
+#battery:hover {
+    background: rgba(0, 255, 65, 0.08);
+    color: #00ff41;
+}
+
+/* ── OS button ───────────────────────────────────────── */
+
+#custom-os {
+    font-size: 16px;
+    padding: 0 12px;
+    color: #00ff41;
+    border-right: 1px solid rgba(0, 255, 65, 0.2);
+}
+
+#custom-os:hover {
+    background: rgba(0, 255, 65, 0.1);
+    color: #ffffff;
+}
+
+/* ── CPU ─────────────────────────────────────────────── */
+
+#cpu {
+    color: #00cc33;
+}
+
+#cpu.high {
+    color: #ffaa00;
+}
+
+/* ── Temperature ─────────────────────────────────────── */
+
+#temperature.critical {
+    color: #ff0055;
+    animation: blink 1s step-end infinite;
+}
+
+/* ── Battery states ──────────────────────────────────── */
+
+#battery.charging {
+    color: #00ff41;
+}
+
+#battery.warning:not(.charging) {
+    color: #ffaa00;
+}
+
+#battery.critical:not(.charging) {
+    color: #ff0055;
+    animation: blink 1s step-end infinite;
+}
+
+/* ── Network ─────────────────────────────────────────── */
+
+#network.disconnected {
+    color: #ff0055;
+}
+
+/* ── Audio muted ─────────────────────────────────────── */
+
+#pulseaudio.muted {
+    color: #555555;
+}
+
+/* ── Tray ────────────────────────────────────────────── */
+
+#tray {
+    padding: 0 8px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    color: #ff0055;
+}
+
+/* ── Blink animation for critical states ─────────────── */
+
+@keyframes blink {
+    to {
+        color: #ff0055;
+        background: rgba(255, 0, 85, 0.15);
+    }
+}
